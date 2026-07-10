@@ -1,0 +1,9 @@
+#tw-rbadge-indicator {
+  display: none !important;
+}
+
+.tw-rbadge-hidden [role="dialog"] {
+  opacity: 0 !important;
+  transition: none !important;
+  animation: none !important;
+}

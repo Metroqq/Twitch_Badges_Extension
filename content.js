@@ -70,6 +70,52 @@
     return false;
   }
 
+  const SUBSCRIPTION_URL_PARTS = [
+    'subscribe', '/sub/', 'product', 'checkout', 'purchase',
+    'gift-sub', 'prime', 'tier'
+  ];
+
+  const SUBSCRIPTION_ALT_PATTERNS = [
+    'подписк', 'subscribe', 'sub gift', 'подарочная подписка',
+    'prime gaming', ' sub '
+  ];
+
+  function isSubscriptionBadge(img) {
+    const alt = (img.alt || '').toLowerCase();
+    const aria = (img.getAttribute('aria-label') || '').toLowerCase();
+
+    for (const p of SUBSCRIPTION_ALT_PATTERNS) {
+      if (alt.includes(p) || aria.includes(p)) return true;
+    }
+
+    let el = img;
+    for (let i = 0; i < 8; i++) {
+      el = el.parentElement;
+      if (!el) break;
+
+      if (el.tagName === 'A') {
+        const href = (el.getAttribute('href') || '').toLowerCase();
+        for (const part of SUBSCRIPTION_URL_PARTS) {
+          if (href.includes(part)) return true;
+        }
+      }
+
+      const target = (el.getAttribute('data-a-target') || '').toLowerCase();
+      if (target.includes('subscribe') || target.includes('sub-goal') ||
+          target.includes('product') || target.includes('promo')) {
+        return true;
+      }
+
+      const testId = (el.getAttribute('data-test-selector') || '').toLowerCase();
+      if (testId.includes('subscribe') || testId.includes('sub-') ||
+          testId.includes('product')) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   function hasChannelSpecificBadge() {
     const btn = findBadgePickerButton();
     if (!btn) return false;
@@ -142,6 +188,16 @@
     for (let i = 0; i < 6; i++) {
       el = el.parentElement;
       if (!el) break;
+
+      if (el.tagName === 'A') {
+        const href = (el.getAttribute('href') || '').toLowerCase();
+        let isSubLink = false;
+        for (const part of SUBSCRIPTION_URL_PARTS) {
+          if (href.includes(part)) { isSubLink = true; break; }
+        }
+        if (isSubLink) continue;
+      }
+
       const role = el.getAttribute('role');
       const tag = el.tagName;
       if (role === 'button' || tag === 'BUTTON' || tag === 'A' ||
@@ -171,6 +227,7 @@
       if (!img.src || seen.has(img.src)) return;
       if (isRoleBadge(img)) return;
       if (isExcludedBadge(img)) return;
+      if (isSubscriptionBadge(img)) return;
 
       const src = img.src;
       if (!src.includes('/badges/') && !src.includes('badges.twitch.tv') && !src.includes('badgescdn')) return;

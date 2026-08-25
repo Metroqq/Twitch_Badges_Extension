@@ -1,6 +1,7 @@
 # Twitch Random Badge — Браузерное расширение
 
 Расширение автоматически меняет значок в чате Twitch при каждом отправленном сообщении.
+<img width="896" height="853" alt="image" src="https://github.com/user-attachments/assets/cc5a986d-c1c0-4322-ab48-c0ebc9222824" />
 
 ## Установка
 

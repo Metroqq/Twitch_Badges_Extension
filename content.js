@@ -70,8 +70,11 @@
     return false;
   }
 
+  // Исправлено: добавлен '/subs/' — ссылки на страницу покупки подписки
+  // (https://www.twitch.tv/subs/{имя_стримера}) не распознавались как подписочные,
+  // из-за чего их кликали при ротации и открывались вкладки /subs.
   const SUBSCRIPTION_URL_PARTS = [
-    'subscribe', '/sub/', 'product', 'checkout', 'purchase',
+    'subscribe', '/sub/', '/subs/', 'product', 'checkout', 'purchase',
     'gift-sub', 'prime', 'tier'
   ];
 

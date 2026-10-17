@@ -33,6 +33,12 @@
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.twitch.tv/*"],
+      "js": ["navguard.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "background": {

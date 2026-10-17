@@ -32,6 +32,19 @@
   let isProcessingQueue = false;
   let sequentialIndex = 0;
 
+  // Исправлено: страховка на время ротации значка — пока идёт выбор и
+  // клик по значку, запрещаем навигацию (открытие вкладок) по внешним
+  // ссылкам. Без этого клик по значку-ссылке (например «Основатель» →
+  // help.twitch.tv/s/article/founders-badge) открывал новые вкладки.
+  let blockPageNavigation = false;
+
+  function setNavigationBlock(on) {
+    blockPageNavigation = on;
+    try {
+      window.postMessage({ type: 'tw-rbadge-nav', block: on }, '*');
+    } catch (e) {}
+  }
+
   const STORAGE_KEY_SEQ = 'tw_random_badge_seq_index';
 
   function log(msg) {
@@ -131,6 +144,38 @@
     return false;
   }
 
+  // Исправлено: клик по значку не должен открывать внешние страницы.
+  // Пример бага: значок «Основатель» обёрнут в ссылку
+  // https://help.twitch.tv/s/article/founders-badge — при ротации клик
+  // по ней открывал 4 новые вкладки. Любая ссылка-предок, ведущая на
+  // другую страницу (другой путь или другой origin), — это навигация,
+  // а не выбор значка.
+  function isNavigationAnchor(el) {
+    if (!el || el.tagName !== 'A') return false;
+    const href = el.getAttribute('href');
+    if (!href || href.charAt(0) === '#') return false;
+    try {
+      const url = new URL(href, location.href);
+      return url.origin !== location.origin || url.pathname !== location.pathname;
+    } catch (e) {
+      return true;
+    }
+  }
+
+  function hasNavigationAncestor(img) {
+    const anchor = img.closest ? img.closest('a') : null;
+    if (anchor && isNavigationAnchor(anchor)) return true;
+
+    let el = img;
+    for (let i = 0; i < 8; i++) {
+      el = el.parentElement;
+      if (!el) break;
+      if (el.tagName === 'A' && isNavigationAnchor(el)) return true;
+      if (el.getAttribute('role') === 'dialog') break;
+    }
+    return false;
+  }
+
   function filterBySettings(badges) {
     return badges.filter(b => {
       const s = (b.src + ' ' + b.alt).toLowerCase();
@@ -193,6 +238,7 @@
       if (!el) break;
 
       if (el.tagName === 'A') {
+        if (isNavigationAnchor(el)) continue;
         const href = (el.getAttribute('href') || '').toLowerCase();
         let isSubLink = false;
         for (const part of SUBSCRIPTION_URL_PARTS) {
@@ -208,7 +254,9 @@
         return el;
       }
     }
-    return img.parentElement || img;
+    const parent = img.parentElement || img;
+    if (isNavigationAnchor(parent)) return img;
+    return parent;
   }
 
   function simulateClick(element) {
@@ -231,6 +279,7 @@
       if (isRoleBadge(img)) return;
       if (isExcludedBadge(img)) return;
       if (isSubscriptionBadge(img)) return;
+      if (hasNavigationAncestor(img)) return;
 
       const src = img.src;
       if (!src.includes('/badges/') && !src.includes('badges.twitch.tv') && !src.includes('badgescdn')) return;
@@ -276,6 +325,7 @@
   }
 
   function nativeSendEnter(chatInput) {
+    setNavigationBlock(false);
     isSending = true;
     chatInput.dispatchEvent(new KeyboardEvent('keydown', {
       key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
@@ -314,6 +364,7 @@
     }
 
     hidePicker();
+    setNavigationBlock(true);
     btn.click();
 
     let attempts = 0;
@@ -413,8 +464,25 @@
     log('Hooks installed');
   }
 
+  // Страховка: пока идёт ротация, отменяем переход по ссылкам, ведущим
+  // на другую страницу (открытие вкладок). Работает на фазе capture,
+  // поэтому обработчики Twitch продолжают работать — просто навигация
+  // не происходит.
+  function installNavigationGuard() {
+    document.addEventListener('click', (e) => {
+      if (!blockPageNavigation) return;
+      const t = e.target;
+      const a = (t && t.closest) ? t.closest('a') : null;
+      if (a && isNavigationAnchor(a)) {
+        e.preventDefault();
+        log('Blocked navigation: ' + (a.getAttribute('href') || ''));
+      }
+    }, true);
+  }
+
   function init() {
     log('Initializing...');
+    installNavigationGuard();
     loadSettings().then(() => {
       loadSequentialIndex().then(() => {
         hookInput();
